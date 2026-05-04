@@ -7,12 +7,13 @@
 
 <style>
 body { font-family: sans-serif; background:#111; color:#eee; padding:10px; }
-button { margin:5px; padding:8px; }
-input { width:60px; margin:3px; }
+button { margin:5px; padding:8px; cursor:pointer; }
+input[type="text"], input[type="number"] { width:60px; margin:3px; }
 .card { border:1px solid #444; padding:10px; margin:5px 0; }
 .hidden { display:none; }
 textarea { width:100%; height:120px; background:#000; color:#0f0; }
 .log { font-size:12px; border-bottom:1px solid #333; padding:5px; }
+.quest-done { text-decoration: line-through; color: #888; }
 </style>
 </head>
 
@@ -25,19 +26,19 @@ textarea { width:100%; height:120px; background:#000; color:#0f0; }
 <button onclick="showPage(3)">퀘스트</button>
 <button onclick="showPage(4)">로그</button>
 
-<!-- ===== 1 ===== -->
+<!-- ===== 1 스탯 ===== -->
 <div id="page1">
 <h2>스탯</h2>
 <div class="card">
-HP <input id="hp"><br>
-MP <input id="mp"><br>
-STR <input id="str">
-DEX <input id="dex">
-STA <input id="sta"><br>
-KNW <input id="knw">
-INS <input id="ins">
-ACT <input id="act">
-DEF <input id="def">
+HP <input id="hp" type="number"><br>
+MP <input id="mp" type="number"><br>
+STR <input id="str" type="number">
+DEX <input id="dex" type="number">
+STA <input id="sta" type="number"><br>
+KNW <input id="knw" type="number">
+INS <input id="ins" type="number">
+ACT <input id="act" type="number">
+DEF <input id="def" type="number">
 </div>
 
 <h2>정수</h2>
@@ -52,12 +53,11 @@ DEF <input id="def">
 정수 - 게이머
 주어진 상황을 객관적으로 바라보고 최적의 조건을 탐색하는 설계자
 (패시브) : 플레이어 시점 - 정신 공격 계열에 모든 면역 보너스를 얻는다.
-(액티브) : 승부욕 - 설정한 적과 함께 랜덤필드로 이동하며, 한 명이 죽을 때까지 필드는 유지된다
-</textarea>
+(액티브) : 승부욕 - 설정한 적과 함께 랜덤필드로 이동하며, 한 명이 죽을 때까지 필드는 유지된다</textarea>
 </div>
 </div>
 
-<!-- ===== 2 ===== -->
+<!-- ===== 2 몬스터 ===== -->
 <div id="page2" class="hidden">
 <h2>몬스터</h2>
 <div id="monsterList"></div>
@@ -66,22 +66,10 @@ DEF <input id="def">
 <div id="activeMonsters"></div>
 </div>
 
-<!-- ===== 3 ===== -->
+<!-- ===== 3 퀘스트 ===== -->
 <div id="page3" class="hidden">
 <h2>퀘스트</h2>
-
-<div class="card">
-<input type="checkbox" onchange="completeQuest(0)"> 한점 집중 사용
-</div>
-<div class="card">
-<input type="checkbox" onchange="completeQuest(1)"> 근원 재설계 1개
-</div>
-<div class="card">
-<input type="checkbox" onchange="completeQuest(2)"> 정수 사용
-</div>
-<div class="card">
-<input type="checkbox" onchange="completeQuest(3)"> 출석 3회
-</div>
+<div id="questList"></div>
 
 EXP: <span id="exp">0</span><br>
 LEVEL: <span id="level">1</span>
@@ -106,108 +94,177 @@ const baseMonsters = [
   {name:"피로", desc:"피로", counter:"휴식"}
 ];
 
+const questNames = [
+  "한점 집중 사용",
+  "근원 재설계 1개",
+  "정수 사용",
+  "출석 3회"
+];
+
 let data = {
-  activeMonsters:[],
-  exp:0,
-  level:1,
-  questDone:[false,false,false,false],
-  logs:[]
+  activeMonsters: [],   // 이제 name 문자열만 저장
+  exp: 0,
+  level: 1,
+  questDone: [false, false, false, false],
+  questDate: "",        // 퀘스트 마지막 초기화 날짜
+  logs: [],
+  stats: { hp:"", mp:"", str:"", dex:"", sta:"", knw:"", ins:"", act:"", def:"" }
 };
 
-function now(){
-  return new Date().toLocaleString();
+/* ─── 날짜 유틸 ─── */
+function todayStr() {
+  return new Date().toLocaleDateString("ko-KR");
 }
 
-function addLog(text){
+function checkDailyReset() {
+  const today = todayStr();
+  if (data.questDate !== today) {
+    data.questDone = [false, false, false, false];
+    data.questDate = today;
+    addLog("하루가 지나 퀘스트가 초기화되었습니다.");
+  }
+}
+
+/* ─── 로그 ─── */
+function now() {
+  return new Date().toLocaleString("ko-KR");
+}
+
+function addLog(text) {
   data.logs.unshift(`[${now()}] ${text}`);
   renderLogs();
 }
 
-function showPage(n){
-  for(let i=1;i<=4;i++){
-    document.getElementById("page"+i).classList.add("hidden");
+/* ─── 페이지 전환 ─── */
+function showPage(n) {
+  for (let i = 1; i <= 4; i++) {
+    document.getElementById("page" + i).classList.add("hidden");
   }
-  document.getElementById("page"+n).classList.remove("hidden");
+  document.getElementById("page" + n).classList.remove("hidden");
 }
 
-function spawn(i){
-  let name = baseMonsters[i];
-  data.activeMonsters.push(name);
-  addLog(`${name} 등장`);
+/* ─── 몬스터 ─── */
+function spawn(i) {
+  const monsterName = baseMonsters[i].name;  // 이름(문자열)만 저장
+  data.activeMonsters.push(monsterName);
+  addLog(`${monsterName} 등장`);
   renderActive();
 }
 
-function kill(i){
-  let name = data.activeMonsters[i];
-  data.activeMonsters.splice(i,1);
-  addLog(`${name} 처치`);
+function kill(i) {
+  const monsterName = data.activeMonsters[i];
+  data.activeMonsters.splice(i, 1);
+  addLog(`${monsterName} 처치`);
   renderActive();
 }
 
-function renderActive(){
-  let c = document.getElementById("activeMonsters");
-  c.innerHTML="";
-  data.activeMonsters.forEach((m,i)=>{
-    c.innerHTML+=`
-    <div class="card">
-    ${m}
-    <button onclick="kill(${i})">처치</button>
-    </div>`;
+function renderActive() {
+  const c = document.getElementById("activeMonsters");
+  c.innerHTML = "";
+  data.activeMonsters.forEach((name, i) => {
+    c.innerHTML += `
+      <div class="card">
+        ${name}
+        <button onclick="kill(${i})">처치</button>
+      </div>`;
   });
 }
 
-function renderMonsters(){
-  let c = document.getElementById("monsterList");
-  c.innerHTML="";
-  baseMonsters.forEach((m,i)=>{
-    c.innerHTML+=`
-    <div class="card">
-    ${m}
-    <button onclick="spawn(${i})">등장</button>
-    </div>`;
+function renderMonsters() {
+  const c = document.getElementById("monsterList");
+  c.innerHTML = "";
+  baseMonsters.forEach((m, i) => {
+    c.innerHTML += `
+      <div class="card">
+        <strong>${m.name}</strong> — ${m.desc} / 대응: ${m.counter}
+        <button onclick="spawn(${i})">등장</button>
+      </div>`;
   });
 }
 
-function completeQuest(i){
-  if(!data.questDone[i]){
-    data.questDone[i]=true;
-    data.exp+=1;
-    addLog(`퀘스트 ${i+1} 완료 (EXP +1)`);
+/* ─── 퀘스트 ─── */
+function completeQuest(i) {
+  if (data.questDone[i]) return;   // 이미 완료된 퀘스트 무시
 
-    if(data.exp>=20){
-      data.exp=0;
-      data.level+=1;
-      addLog(`레벨업! Lv.${data.level}`);
-    }
+  data.questDone[i] = true;
+  data.exp += 1;
+  addLog(`퀘스트 "${questNames[i]}" 완료 (EXP +1)`);
 
-    updateUI();
+  if (data.exp >= 20) {
+    data.exp = 0;
+    data.level += 1;
+    addLog(`레벨업! Lv.${data.level}`);
   }
+
+  renderQuests();
+  updateUI();
+  save();
 }
 
-function renderLogs(){
-  let c = document.getElementById("logList");
-  c.innerHTML="";
-  data.logs.forEach(l=>{
-    c.innerHTML+=`<div class="log">${l}</div>`;
+function renderQuests() {
+  const c = document.getElementById("questList");
+  c.innerHTML = "";
+  questNames.forEach((name, i) => {
+    const done = data.questDone[i];
+    c.innerHTML += `
+      <div class="card ${done ? "quest-done" : ""}">
+        <input type="checkbox" ${done ? "checked disabled" : `onchange="completeQuest(${i})"`}>
+        ${name}
+      </div>`;
   });
 }
 
-function updateUI(){
-  document.getElementById("exp").innerText=data.exp;
-  document.getElementById("level").innerText=data.level;
+/* ─── 스탯 동기화 ─── */
+const statIds = ["hp","mp","str","dex","sta","knw","ins","act","def"];
+
+function syncStatsToData() {
+  statIds.forEach(id => {
+    data.stats[id] = document.getElementById(id).value;
+  });
 }
 
-function save(){
+function loadStatsToUI() {
+  statIds.forEach(id => {
+    document.getElementById(id).value = data.stats[id] || "";
+  });
+}
+
+/* ─── UI 업데이트 ─── */
+function updateUI() {
+  document.getElementById("exp").innerText = data.exp;
+  document.getElementById("level").innerText = data.level;
+}
+
+function renderLogs() {
+  const c = document.getElementById("logList");
+  c.innerHTML = "";
+  data.logs.forEach(l => {
+    c.innerHTML += `<div class="log">${l}</div>`;
+  });
+}
+
+/* ─── 저장 / 불러오기 ─── */
+function save() {
+  syncStatsToData();
   localStorage.setItem("lifeRPG", JSON.stringify(data));
   alert("저장됨");
 }
 
-function load(){
-  let s = localStorage.getItem("lifeRPG");
-  if(s) data = JSON.parse(s);
+function load() {
+  const s = localStorage.getItem("lifeRPG");
+  if (s) {
+    const saved = JSON.parse(s);
+    // 새 필드 안전하게 병합
+    data = Object.assign(data, saved);
+  }
+
+  checkDailyReset();   // 불러온 뒤 날짜 체크
+
   renderMonsters();
   renderActive();
+  renderQuests();
   renderLogs();
+  loadStatsToUI();
   updateUI();
 }
 
