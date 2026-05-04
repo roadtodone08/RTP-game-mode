@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Life RPG</title>
+
+<style>
+body {
+  font-family: sans-serif;
+  padding: 10px;
+  background: #111;
+  color: #eee;
+}
+h2 { margin-top: 20px; }
+input {
+  width: 60px;
+  margin: 3px;
+}
+button {
+  margin: 5px;
+  padding: 8px;
+}
+.card {
+  border: 1px solid #444;
+  padding: 10px;
+  margin: 5px 0;
+}
+.active {
+  border-color: red;
+}
+</style>
+</head>
+
+<body>
+
+<h1>Life RPG</h1>
+
+<!-- ===== 스탯 ===== -->
+<h2>스탯</h2>
+<div class="card">
+HP <input id="hp" type="number">
+MP <input id="mp" type="number"><br><br>
+
+<b>신체</b><br>
+STR <input id="str" type="number">
+DEX <input id="dex" type="number">
+STA <input id="sta" type="number"><br><br>
+
+<b>정신</b><br>
+KNW <input id="knw" type="number">
+INS <input id="ins" type="number">
+ACT <input id="act" type="number">
+DEF <input id="def" type="number">
+</div>
+
+<!-- ===== 상태 ===== -->
+<h2>상태</h2>
+<div class="card">
+Arousal <input id="ar" type="number" min="0" max="5">
+Stress <input id="st" type="number" min="0" max="5"><br>
+Fatigue <input id="ft" type="number" min="0" max="5">
+Mood <input id="md" type="number" min="0" max="5">
+</div>
+
+<!-- ===== 몬스터 ===== -->
+<h2>몬스터</h2>
+
+<div id="monsterList"></div>
+
+<h3>활성 몬스터</h3>
+<div id="activeMonsters"></div>
+
+<br>
+<button onclick="save()">저장</button>
+
+<script>
+// ===== 기본 데이터 =====
+const baseMonsters = [
+  {
+    name: "비교 망령",
+    desc: "타인과 비교하여 멘탈 감소",
+    counter: "절대지표 전환"
+  },
+  {
+    name: "완벽주의 골렘",
+    desc: "기준 과다 → 행동 정지",
+    counter: "60% 초안"
+  },
+  {
+    name: "회피형 몬스터",
+    desc: "불편 회피",
+    counter: "5분 착수"
+  },
+  {
+    name: "과부하 보스",
+    desc: "선택지 과다",
+    counter: "3개로 제한"
+  },
+  {
+    name: "피로 흡혈귀",
+    desc: "에너지 흡수",
+    counter: "수면 / 휴식"
+  }
+];
+
+let data = {
+  stats: {},
+  state: {},
+  activeMonsters: []
+};
+
+// ===== 로드 =====
+function load() {
+  const saved = localStorage.getItem("lifeRPG");
+  if (saved) data = JSON.parse(saved);
+
+  updateUI();
+}
+
+// ===== 저장 =====
+function save() {
+  readInputs();
+  localStorage.setItem("lifeRPG", JSON.stringify(data));
+  alert("저장됨");
+}
+
+// ===== 입력 읽기 =====
+function readInputs() {
+  data.stats = {
+    hp: val("hp"),
+    mp: val("mp"),
+    str: val("str"),
+    dex: val("dex"),
+    sta: val("sta"),
+    knw: val("knw"),
+    ins: val("ins"),
+    act: val("act"),
+    def: val("def")
+  };
+
+  data.state = {
+    ar: val("ar"),
+    st: val("st"),
+    ft: val("ft"),
+    md: val("md")
+  };
+}
+
+function val(id) {
+  return Number(document.getElementById(id).value || 0);
+}
+
+// ===== UI 업데이트 =====
+function updateUI() {
+
+  // 스탯 표시
+  for (let key in data.stats) {
+    if (document.getElementById(key))
+      document.getElementById(key).value = data.stats[key];
+  }
+
+  for (let key in data.state) {
+    if (document.getElementById(key))
+      document.getElementById(key).value = data.state[key];
+  }
+
+  // 몬스터 목록
+  const list = document.getElementById("monsterList");
+  list.innerHTML = "";
+
+  baseMonsters.forEach((m, i) => {
+    const div = document.createElement("div");
+    div.className = "card";
+
+    div.innerHTML = `
+      <b>${m.name}</b><br>
+      ${m.desc}<br>
+      <i>공략: ${m.counter}</i><br>
+      <button onclick="spawn(${i})">등장</button>
+    `;
+
+    list.appendChild(div);
+  });
+
+  renderActive();
+}
+
+// ===== 몬스터 등장 =====
+function spawn(index) {
+  const m = baseMonsters[index];
+  data.activeMonsters.push(m);
+  renderActive();
+}
+
+// ===== 활성 몬스터 =====
+function renderActive() {
+  const container = document.getElementById("activeMonsters");
+  container.innerHTML = "";
+
+  data.activeMonsters.forEach((m, i) => {
+    const div = document.createElement("div");
+    div.className = "card active";
+
+    div.innerHTML = `
+      <b>${m.name}</b><br>
+      ${m.desc}<br>
+      <button onclick="kill(${i})">처치 완료</button>
+    `;
+
+    container.appendChild(div);
+  });
+}
+
+// ===== 처치 =====
+function kill(index) {
+  data.activeMonsters.splice(index, 1);
+  renderActive();
+}
+
+// ===== 시작 =====
+load();
+
+</script>
+
+</body>
+</html>
