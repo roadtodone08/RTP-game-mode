@@ -6,29 +6,13 @@
 <title>Life RPG</title>
 
 <style>
-body {
-  font-family: sans-serif;
-  padding: 10px;
-  background: #111;
-  color: #eee;
-}
-h2 { margin-top: 20px; }
-input {
-  width: 60px;
-  margin: 3px;
-}
-button {
-  margin: 5px;
-  padding: 8px;
-}
-.card {
-  border: 1px solid #444;
-  padding: 10px;
-  margin: 5px 0;
-}
-.active {
-  border-color: red;
-}
+body { font-family: sans-serif; background:#111; color:#eee; padding:10px; }
+button { margin:5px; padding:8px; }
+input { width:60px; margin:3px; }
+.card { border:1px solid #444; padding:10px; margin:5px 0; }
+.hidden { display:none; }
+textarea { width:100%; height:120px; background:#000; color:#0f0; }
+.log { font-size:12px; border-bottom:1px solid #333; padding:5px; }
 </style>
 </head>
 
@@ -36,189 +20,197 @@ button {
 
 <h1>Life RPG</h1>
 
-<!-- ===== 스탯 ===== -->
+<button onclick="showPage(1)">스탯</button>
+<button onclick="showPage(2)">몬스터</button>
+<button onclick="showPage(3)">퀘스트</button>
+<button onclick="showPage(4)">로그</button>
+
+<!-- ===== 1 ===== -->
+<div id="page1">
 <h2>스탯</h2>
 <div class="card">
-HP <input id="hp" type="number">
-MP <input id="mp" type="number"><br><br>
-
-<b>신체</b><br>
-STR <input id="str" type="number">
-DEX <input id="dex" type="number">
-STA <input id="sta" type="number"><br><br>
-
-<b>정신</b><br>
-KNW <input id="knw" type="number">
-INS <input id="ins" type="number">
-ACT <input id="act" type="number">
-DEF <input id="def" type="number">
+HP <input id="hp"><br>
+MP <input id="mp"><br>
+STR <input id="str">
+DEX <input id="dex">
+STA <input id="sta"><br>
+KNW <input id="knw">
+INS <input id="ins">
+ACT <input id="act">
+DEF <input id="def">
 </div>
 
-<!-- ===== 상태 ===== -->
-<h2>상태</h2>
+<h2>정수</h2>
 <div class="card">
-Arousal <input id="ar" type="number" min="0" max="5">
-Stress <input id="st" type="number" min="0" max="5"><br>
-Fatigue <input id="ft" type="number" min="0" max="5">
-Mood <input id="md" type="number" min="0" max="5">
+<textarea readonly>
+정수 - 튜터
+제3의 관점에서 나를 바라보며
+상상 속 걔와 스파링을 시켜주는 몬스터.
+(패시브) - ???
+(액티브) : DFWYA - 나에게 잔소리와 호통을 친다. 
+
+정수 - 게이머
+주어진 상황을 객관적으로 바라보고 최적의 조건을 탐색하는 설계자
+(패시브) : 플레이어 시점 - 정신 공격 계열에 모든 면역 보너스를 얻는다.
+(액티브) : 승부욕 - 설정한 적과 함께 랜덤필드로 이동하며, 한 명이 죽을 때까지 필드는 유지된다
+</textarea>
+</div>
 </div>
 
-<!-- ===== 몬스터 ===== -->
+<!-- ===== 2 ===== -->
+<div id="page2" class="hidden">
 <h2>몬스터</h2>
-
 <div id="monsterList"></div>
 
 <h3>활성 몬스터</h3>
 <div id="activeMonsters"></div>
+</div>
+
+<!-- ===== 3 ===== -->
+<div id="page3" class="hidden">
+<h2>퀘스트</h2>
+
+<div class="card">
+<input type="checkbox" onchange="completeQuest(0)"> 한점 집중 사용
+</div>
+<div class="card">
+<input type="checkbox" onchange="completeQuest(1)"> 근원 재설계 1개
+</div>
+<div class="card">
+<input type="checkbox" onchange="completeQuest(2)"> 정수 사용
+</div>
+<div class="card">
+<input type="checkbox" onchange="completeQuest(3)"> 출석 3회
+</div>
+
+EXP: <span id="exp">0</span><br>
+LEVEL: <span id="level">1</span>
+</div>
+
+<!-- ===== 4 로그 ===== -->
+<div id="page4" class="hidden">
+<h2>로그</h2>
+<div id="logList"></div>
+</div>
 
 <br>
 <button onclick="save()">저장</button>
 
 <script>
-// ===== 기본 데이터 =====
+
 const baseMonsters = [
-  {
-    name: "비교 망령",
-    desc: "타인과 비교하여 멘탈 감소",
-    counter: "절대지표 전환"
-  },
-  {
-    name: "완벽주의 골렘",
-    desc: "기준 과다 → 행동 정지",
-    counter: "60% 초안"
-  },
-  {
-    name: "회피형 몬스터",
-    desc: "불편 회피",
-    counter: "5분 착수"
-  },
-  {
-    name: "과부하 보스",
-    desc: "선택지 과다",
-    counter: "3개로 제한"
-  },
-  {
-    name: "피로 흡혈귀",
-    desc: "에너지 흡수",
-    counter: "수면 / 휴식"
-  }
+  {name:"비교 망령", desc:"비교", counter:"절대지표"},
+  {name:"완벽주의 골렘", desc:"완벽주의", counter:"60%"},
+  {name:"회피형", desc:"회피", counter:"5분"},
+  {name:"과부하", desc:"과부하", counter:"3개"},
+  {name:"피로", desc:"피로", counter:"휴식"}
 ];
 
 let data = {
-  stats: {},
-  state: {},
-  activeMonsters: []
+  activeMonsters:[],
+  exp:0,
+  level:1,
+  questDone:[false,false,false,false],
+  logs:[]
 };
 
-// ===== 로드 =====
-function load() {
-  const saved = localStorage.getItem("lifeRPG");
-  if (saved) data = JSON.parse(saved);
-
-  updateUI();
+function now(){
+  return new Date().toLocaleString();
 }
 
-// ===== 저장 =====
-function save() {
-  readInputs();
+function addLog(text){
+  data.logs.unshift(`[${now()}] ${text}`);
+  renderLogs();
+}
+
+function showPage(n){
+  for(let i=1;i<=4;i++){
+    document.getElementById("page"+i).classList.add("hidden");
+  }
+  document.getElementById("page"+n).classList.remove("hidden");
+}
+
+function spawn(i){
+  let name = baseMonsters[i];
+  data.activeMonsters.push(name);
+  addLog(`${name} 등장`);
+  renderActive();
+}
+
+function kill(i){
+  let name = data.activeMonsters[i];
+  data.activeMonsters.splice(i,1);
+  addLog(`${name} 처치`);
+  renderActive();
+}
+
+function renderActive(){
+  let c = document.getElementById("activeMonsters");
+  c.innerHTML="";
+  data.activeMonsters.forEach((m,i)=>{
+    c.innerHTML+=`
+    <div class="card">
+    ${m}
+    <button onclick="kill(${i})">처치</button>
+    </div>`;
+  });
+}
+
+function renderMonsters(){
+  let c = document.getElementById("monsterList");
+  c.innerHTML="";
+  baseMonsters.forEach((m,i)=>{
+    c.innerHTML+=`
+    <div class="card">
+    ${m}
+    <button onclick="spawn(${i})">등장</button>
+    </div>`;
+  });
+}
+
+function completeQuest(i){
+  if(!data.questDone[i]){
+    data.questDone[i]=true;
+    data.exp+=1;
+    addLog(`퀘스트 ${i+1} 완료 (EXP +1)`);
+
+    if(data.exp>=20){
+      data.exp=0;
+      data.level+=1;
+      addLog(`레벨업! Lv.${data.level}`);
+    }
+
+    updateUI();
+  }
+}
+
+function renderLogs(){
+  let c = document.getElementById("logList");
+  c.innerHTML="";
+  data.logs.forEach(l=>{
+    c.innerHTML+=`<div class="log">${l}</div>`;
+  });
+}
+
+function updateUI(){
+  document.getElementById("exp").innerText=data.exp;
+  document.getElementById("level").innerText=data.level;
+}
+
+function save(){
   localStorage.setItem("lifeRPG", JSON.stringify(data));
   alert("저장됨");
 }
 
-// ===== 입력 읽기 =====
-function readInputs() {
-  data.stats = {
-    hp: val("hp"),
-    mp: val("mp"),
-    str: val("str"),
-    dex: val("dex"),
-    sta: val("sta"),
-    knw: val("knw"),
-    ins: val("ins"),
-    act: val("act"),
-    def: val("def")
-  };
-
-  data.state = {
-    ar: val("ar"),
-    st: val("st"),
-    ft: val("ft"),
-    md: val("md")
-  };
-}
-
-function val(id) {
-  return Number(document.getElementById(id).value || 0);
-}
-
-// ===== UI 업데이트 =====
-function updateUI() {
-
-  // 스탯 표시
-  for (let key in data.stats) {
-    if (document.getElementById(key))
-      document.getElementById(key).value = data.stats[key];
-  }
-
-  for (let key in data.state) {
-    if (document.getElementById(key))
-      document.getElementById(key).value = data.state[key];
-  }
-
-  // 몬스터 목록
-  const list = document.getElementById("monsterList");
-  list.innerHTML = "";
-
-  baseMonsters.forEach((m, i) => {
-    const div = document.createElement("div");
-    div.className = "card";
-
-    div.innerHTML = `
-      <b>${m.name}</b><br>
-      ${m.desc}<br>
-      <i>공략: ${m.counter}</i><br>
-      <button onclick="spawn(${i})">등장</button>
-    `;
-
-    list.appendChild(div);
-  });
-
+function load(){
+  let s = localStorage.getItem("lifeRPG");
+  if(s) data = JSON.parse(s);
+  renderMonsters();
   renderActive();
+  renderLogs();
+  updateUI();
 }
 
-// ===== 몬스터 등장 =====
-function spawn(index) {
-  const m = baseMonsters[index];
-  data.activeMonsters.push(m);
-  renderActive();
-}
-
-// ===== 활성 몬스터 =====
-function renderActive() {
-  const container = document.getElementById("activeMonsters");
-  container.innerHTML = "";
-
-  data.activeMonsters.forEach((m, i) => {
-    const div = document.createElement("div");
-    div.className = "card active";
-
-    div.innerHTML = `
-      <b>${m.name}</b><br>
-      ${m.desc}<br>
-      <button onclick="kill(${i})">처치 완료</button>
-    `;
-
-    container.appendChild(div);
-  });
-}
-
-// ===== 처치 =====
-function kill(index) {
-  data.activeMonsters.splice(index, 1);
-  renderActive();
-}
-
-// ===== 시작 =====
 load();
 
 </script>
