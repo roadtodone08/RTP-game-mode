@@ -89,9 +89,9 @@ LEVEL: <span id="level">1</span>
 const baseMonsters = [
   {name:"비교 망령", desc:"비교", counter:"절대지표"},
   {name:"완벽주의 골렘", desc:"완벽주의", counter:"60%"},
-  {name:"회피형 고블린", desc:"회피", counter:"5분"},
-  {name:"과부하 오크", desc:"과부하", counter:"3개"},
-  {name:"피로 흡혈귀", desc:"피로", counter:"휴식"}
+  {name:"회피형", desc:"회피", counter:"5분"},
+  {name:"과부하", desc:"과부하", counter:"3개"},
+  {name:"피로", desc:"피로", counter:"휴식"}
 ];
 
 const questNames = [
@@ -122,6 +122,7 @@ function checkDailyReset() {
     data.questDone = [false, false, false, false];
     data.questDate = today;
     addLog("하루가 지나 퀘스트가 초기화되었습니다.");
+    saveQuiet();   // 초기화 상태 즉시 저장 (exp/level/stats 보존)
   }
 }
 
@@ -198,7 +199,7 @@ function completeQuest(i) {
 
   renderQuests();
   updateUI();
-  save();
+  saveQuiet();
 }
 
 function renderQuests() {
@@ -244,8 +245,13 @@ function renderLogs() {
 }
 
 /* ─── 저장 / 불러오기 ─── */
+function saveQuiet() {
+  // 스탯은 건드리지 않고 현재 data만 저장 (퀘스트 자동저장용)
+  localStorage.setItem("lifeRPG", JSON.stringify(data));
+}
+
 function save() {
-  syncStatsToData();
+  syncStatsToData();   // 스탯 input 값 → data.stats 에 반영
   localStorage.setItem("lifeRPG", JSON.stringify(data));
   alert("저장됨");
 }
